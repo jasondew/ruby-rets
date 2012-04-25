@@ -36,8 +36,6 @@ module RETS
         end
 
         @http.request(:url => @urls[:logout])
-
-        nil
       end
 
       ##
@@ -76,7 +74,7 @@ module RETS
         end
 
         @request_size, @request_hash, @rets_data = nil, nil, nil
-        @http.request(:url => @urls[:getmetadata], :read_timeout => args[:read_timeout], :params => {:Format => :COMPACT, :Type => args[:type], :ID => args[:id]}) do |response|
+        @http.request(:url => @urls[:getmetadata], :read_timeout => args[:read_timeout], :params => {:Format => :COMPACT, :Type => args[:type], :ID => args[:id]}).tap do |response|
           stream = RETS::StreamHTTP.new(response)
           sax = RETS::Base::SAXMetadata.new(block)
 
@@ -85,8 +83,6 @@ module RETS
           @request_size, @request_hash = stream.size, stream.hash
           @rets_data = sax.rets_data
         end
-
-        nil
       end
 
       ##
@@ -123,7 +119,7 @@ module RETS
         end
 
         req = {:url => @urls[:getobject], :read_timeout => args[:read_timeout], :headers => {}}
-        req[:params] = {:Resource => args[:resource], :Type => args[:type], :Location => (args[:location] ? 1 : 0), :ID => args[:id]}
+        req[:params] = {:Resource => args[:resource], :Type => args[:type], :ID => "#{args[:id]}:#{args[:location] ? 1 : 0}"}
         if args[:accept].is_a?(Array)
           req[:headers]["Accept"] = args[:accept].join(",")
         else
@@ -132,7 +128,7 @@ module RETS
 
         # Will get swapped to a streaming call rather than a download-and-parse later, easy to do as it's called with a block now
         @request_size, @request_hash, @rets_data = nil, nil, nil
-        @http.request(req) do |response|
+        @http.request(req).tap do |response|
           body = response.read_body
           @request_size, @request_hash = body.length, Digest::SHA1.hexdigest(body)
 
@@ -192,8 +188,6 @@ module RETS
             end
           end
         end
-
-        nil
       end
 
       ##
@@ -238,17 +232,16 @@ module RETS
           req[:params][:Count] = 1
         end
 
-        @request_size, @request_hash, @rets_data = nil, nil, {}
-        @http.request(req) do |response|
-          stream = RETS::StreamHTTP.new(response)
-          sax = RETS::Base::SAXSearch.new(@rets_data, block)
+        @request_size, @request_hash, @rets_data = nil, nil, nil
+        @http.request(req).tap do |response|
+#          stream = RETS::StreamHTTP.new(response)
+          sax = RETS::Base::SAXSearch.new(block)
 
-          Nokogiri::XML::SAX::Parser.new(sax).parse_io(stream)
+          Nokogiri::XML::SAX::Parser.new(sax).parse(response.body)
 
-          @request_size, @request_hash = stream.size, stream.hash
+#          @request_size, @request_hash = stream.size, stream.hash
+          @rets_data = sax.rets_data
         end
-
-        nil
       end
     end
   end
