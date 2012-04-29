@@ -119,7 +119,7 @@ module RETS
         end
 
         req = {:url => @urls[:getobject], :read_timeout => args[:read_timeout], :headers => {}}
-        req[:params] = {:Resource => args[:resource], :Type => args[:type], :ID => "#{args[:id]}:#{args[:location] ? 1 : 0}"}
+        req[:params] = {:Resource => args[:resource], :Type => args[:type], :ID => "#{args[:id]}:#{args[:number] || '*'}"}
         if args[:accept].is_a?(Array)
           req[:headers]["Accept"] = args[:accept].join(",")
         else
